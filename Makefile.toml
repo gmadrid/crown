@@ -1,0 +1,83 @@
+[config]
+default_to_workspace = false
+
+[tasks.default]
+alias = "crownapp-bundle"
+
+[tasks.serve]
+command = "simple-http-server"
+args = [ "--nocache", "." ]
+imstall_crate = {crate_name = "simple-http-server", binary = "simple-http-server"}
+
+[tasks.wasm]
+description = "Build the wasm code"
+command = "wasm-pack"
+args = ["build", "--target", "web", "--out-dir", "${pkg}"]
+dependencies = [ "define-pkg", "format" ]
+install_crate = { crate_name = "wasm-pack", binary = "wasm-pack", test_arg = "--help" }
+
+[tasks.crownapp-bundle]
+description = "Bundle the 'crown' wasm"
+dependencies = [ "define-pkg", "wasm" ]
+command = "rollup"
+args = [ "./crown.js", "--format", "iife", "--file", "${pkg}/crown.js" ]
+
+[tasks.define-pkg]
+private = true
+description = "If dist-version-subdir is set, use it for pkg, otherwise './pkg'"
+dependencies = [ "define-dist-pkg", "define-default-pkg"]
+
+[tasks.define-default-pkg]
+private = true
+condition = { env_not_set = ["pkg"] }
+env = { pkg = "./pkg" }
+
+[tasks.define-dist-pkg]
+private = true
+condition = { env_set = ["dist-version-subdir"]}
+env = { pkg = "${dist-version-subdir}/pkg"}
+
+[tasks.dist]
+dependencies = [ "make-dist-dir", "build-dist-directory" ]
+command = "echo"
+args = [ "${dist-version-subdir}" ]
+
+[tasks.define-dist-env]
+private = true
+env = { "dist-subdir" = "dist", "dist-version" = "${CARGO_MAKE_CRATE_VERSION}" ,  "dist-version-subdir" = "${dist-subdir}/${dist-version}"}
+command = "echo"
+args = ["GGG: ${dist-version-subdir}"]
+
+[tasks.build-dist-directory]
+private = true
+dependencies = [ "make-dist-html", "make-dist-js" ]
+
+[tasks.make-dist-html]
+private = true
+dependencies = ["define-dist-env"]
+command = "sed"
+args = ["-e", "s|/pkg/|/${dist-version-subdir}/pkg-${dist-version}/|", "crown.html", ">", "${dist-version-subdir}/twopattern.html"]
+
+[tasks.make-dist-js]
+
+# [tasks.dist-srcs]
+# dependencies = [ "dist-html", "dist-js"]
+#
+# [tasks.dist-html]
+# dependencies = ["define-dist-env"]
+# command = "sed"
+# args = ["-e", "s|pkg|${dist-version-subdir}|", "./twopattern.html"]
+#
+# [tasks.dist-js]
+#
+#
+[tasks.make-dist-dir]
+private = true
+dependencies = [ "define-dist-env"]
+command = "mkdir"
+args = [ "-p", "${dist-version-subdir}" ]
+
+
+# [tasks.watch-testapp-bundle]
+# dependencies = ["testapp-bundle"]
+# watch = { postpone = true, no_git_ignore = true, watch = ["./apps", "./libs", "./serving"] }
